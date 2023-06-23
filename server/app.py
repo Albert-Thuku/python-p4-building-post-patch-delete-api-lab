@@ -30,17 +30,101 @@ def bakeries():
     )
     return response
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods=['GET', 'PATCH'])
 def bakery_by_id(id):
-
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
 
-    response = make_response(
-        bakery_serialized,
-        200
-    )
-    return response
+    if request.method == 'GET':
+        if not bakery:
+            response = make_response('Bakery not found', 404)
+            return response
+        
+        bakery_serialized = bakery.to_dict()
+
+        response = make_response(
+            bakery_serialized,
+            200
+        )
+        return response
+    
+    if request.method == 'PATCH':
+        for attr in request.form:
+            setattr(bakery, attr, request.form.get(attr))
+
+        db.session.add(bakery)
+        db.session.commit()
+
+        bakery_dict = bakery.to_dict()
+        response = make_response(jsonify(bakery_dict),200)
+        response.headers["Content-Type"] = "application/json"
+        return response
+
+@app.route('/baked_goods', methods=['GET','POST'])
+def baked_goods():
+    baked_goods = BakedGood.query.all()
+
+    if request.method == 'GET':
+        baked_list = []
+        for baked_good in baked_goods:
+            baked_good_dict = baked_good.to_dict()
+            baked_list.append(baked_good_dict)
+
+        response = make_response(jsonify(baked_list),200)
+        response.headers["Content-Type"] = "application/json"
+        return response
+    
+    if request.method == 'POST':
+        new_good = BakedGood(
+            name=request.form.get('name'),
+            price=request.form.get('price'),
+            bakery_id=request.form.get('bakery_id')
+        )
+        db.session.add(new_good)
+        db.session.commit()
+
+        baked_good = new_good.to_dict()
+        response = make_response(jsonify(baked_good),201)
+        response.headers["Content-Type"]="application/json"
+        return response
+    
+
+@app.route('/baked_goods/<int:id>', methods=['GET', 'PATCH','DELETE'])
+def baked_good_by_id(id):
+    baked_good = BakedGood.query.filter_by(id=id).first()
+
+    if request.method == 'GET':
+
+        if not baked_good:
+            response_body = f'Baked Good id: {id} not found'
+            response = make_response(response_body,404)
+            return response
+
+        baked_good_dict = baked_good.to_dict()
+        response = make_response(jsonify(baked_good_dict),200)
+        response.headers["Content-Type"] = "application/json"
+        return response
+
+    elif request.method == 'PATCH':
+        baked_good = BakedGood.query.filter_by(id=id).first()
+        for attr in request.form:
+            setattr(baked_good, attr, request.form.get(attr))
+
+        db.session.add(baked_good)
+        db.session.commit()
+
+        baked_good_dict = baked_good.to_dict()
+        response = make_response(jsonify(baked_good_dict),200)
+        response.headers["Content-Type"] = "application/json"
+        return response
+    
+    elif request.method == 'DELETE':
+        db.session.delete(baked_good)
+        db.session.commit()
+
+        response_body = {"delete_successful" : True}
+        response = make_response(jsonify(response_body), 200)
+        return response  
+
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
